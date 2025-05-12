@@ -10,52 +10,51 @@ jobs:
     runs-on: [ "self-hosted", "Linux", "X64" ]
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
+      # ───────────────────────────────────────────────
+      # Build & push FRONTEND
+      # ───────────────────────────────────────────────
       - name: Configure Docker CLI for Minikube
-        run: |
-          echo "Switching Docker to Minikube's Docker daemon"
-          eval $(minikube docker-env)
+        run: eval $(minikube docker-env)
 
-      # --------------------------------------------------
-      # 1. Log in to Docker Hub (once, for both images)
-      # --------------------------------------------------
+      - name: Build frontend image (Minikube)
+        run: |
+          docker build -t hamza2533/my-react-frontend:latest ./app/frontend
+
+      - name: Revert Docker CLI to host
+        run: eval $(minikube docker-env -u)
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # --------------------------------------------------
-      # 2. Build & push frontend image
-      # --------------------------------------------------
-      - name: Build frontend image
-        run: |
-          docker build \
-            -t hamza2533/my-react-frontend:latest \
-            ./app/frontend
-
-      - name: Push frontend image
+      - name: Push frontend image (host)
         run: |
           docker push hamza2533/my-react-frontend:latest
 
-      # --------------------------------------------------
-      # 3. Build & push backend image
-      # --------------------------------------------------
-      - name: Build backend image
-        run: |
-          docker build \
-            -t hamza2533/my-node-backend:latest \
-            ./app/backend
+      # ───────────────────────────────────────────────
+      # Build & push BACKEND
+      # ───────────────────────────────────────────────
+      - name: Configure Docker CLI for Minikube
+        run: eval $(minikube docker-env)
 
-      - name: Push backend image
+      - name: Build backend image (Minikube)
+        run: |
+          docker build -t hamza2533/my-node-backend:latest ./app/backend
+
+      - name: Revert Docker CLI to host
+        run: eval $(minikube docker-env -u)
+
+      - name: Push backend image (host)
         run: |
           docker push hamza2533/my-node-backend:latest
 
-      # --------------------------------------------------
-      # 4. Deploy to Kubernetes
-      # --------------------------------------------------
+      # ───────────────────────────────────────────────
+      # Deploy to Kubernetes
+      # ───────────────────────────────────────────────
       - name: Deploy frontend
         run: |
           kubectl apply -f service-frontend.yaml
